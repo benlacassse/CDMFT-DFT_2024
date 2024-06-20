@@ -66,7 +66,7 @@
  0.00000000  0.00000000  1.00000000   # new z-axis
  1 0 0
 #================ # Siginds and crystal-field transformations for correlated orbitals ================
-10    20   3       # Number of independent kcix blocks, max dimension, max num-independent-components
+10   20   3       # Number of independent kcix blocks, max dimension, max num-independent-components
 1    20   3       # cix-num, dimension, num-independent-components
 #---------------- # Independent components are --------------
 'x2y2-loc' 'x2y2-NN' 'x2y2-NNN'
