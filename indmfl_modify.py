@@ -70,18 +70,16 @@ class DMFTFileModifier:
         self.lines = modified_lines
         self.modified_content = "".join(modified_lines)
 
-
     def replace_number(self, line, old, new):
         # Use regular expressions to ensure exact match
         return re.sub(r'\b{}\b'.format(re.escape(old)), new, line, 1)
-
 
     def independent_components(self):
         search_line = False
         modified_lines = copy.deepcopy(self.lines)
         for i, line in enumerate(self.lines):
             if search_line:
-                line = line.rstrip() + ' ' + line.rstrip() + '\n'
+                line = (line.rstrip() + ' ')*self.layers + '\n'
                 modified_lines[i] = line
                 break
             if line.strip().startswith('#---------------- # Independent'):
@@ -108,16 +106,18 @@ class DMFTFileModifier:
 
         return ''.join(modified_line)
 
-
     def sigind_matrix(self):
-        search_line = False
+        sigind_count = 0
         modified_lines = copy.deepcopy(self.lines)  
-        j=1
         liste = list(np.hstack((np.arange(self.layers)[::-1], np.arange(1, self.layers))))
         for i, line in enumerate(self.lines):
-            if search_line:
+            this_line = line.rstrip()
+            if 'Sigind ' in line:
+                sigind_count += 1
+                j=1
+                continue
+            if sigind_count == 1 : 
                 if j <= self.old_dimensions:
-                    this_line = line.rstrip()
                     for l in range(self.layers):
                         new_line = ''
                         for k in range(self.layers):
@@ -128,12 +128,67 @@ class DMFTFileModifier:
                         else:
                             modified_lines.insert(i + self.old_dimensions+(l-1)*j, new_line + '\n')
                     j += 1
+            elif sigind_count > 1:
+                if j <= self.old_dimensions/self.nodes:
+                    this_line = line.rstrip()
+                    modified_lines[i + self.old_dimensions*(self.layers-1)] = self.modify_line(this_line, self.layers-1) +'\n'
+                    j += 1
+
+
+        self.modified_content = "".join(modified_lines)
+        self.lines = modified_lines
+
+    def transformation_matrix(self):
+        search_line = False
+        modified_lines = copy.deepcopy(self.lines)  
+        j=1
+        for i, line in enumerate(self.lines):
+            if search_line:
+                if j <= self.old_dimensions:
+                    this_line = line.rstrip()[1:]
+                    if line.rstrip()[0] == ' ':
+                        new_line = ' '
+                    else:
+                        new_line = '-'
+                    for l in range(self.layers):
+                        for k in range(self.layers):
+                            if l == k:
+                                new_line = new_line + this_line + '    '
+                            else:
+                                new_line = new_line + '0.00000000  0.00000000    '*self.old_dimensions
+                            
+                        if l == 0:
+                            modified_lines[i] = new_line + '\n'
+                        else:
+                            modified_lines.insert(i + self.old_dimensions+(l-1)*j, new_line + '\n')
+                        new_line = ' '
+                    j += 1
                 else:
                     search_line = False
 
-            if line.strip().startswith('#---------------- # S'):
+            if line.strip().startswith('#---------------- # T'):
                 search_line = True
 
+        self.modified_content = "".join(modified_lines)
+        self.lines = modified_lines
+    
+    def delete_matrices(self):
+        cix_num_count = 0
+        modified_lines = []
+        
+        i = 0
+        while i < len(self.lines):
+            line = self.lines[i]
+            if 'cix-num' in line:
+                cix_num_count += 1
+                if cix_num_count > 1 and cix_num_count <= self.layers:
+                    i = i + 5 + 2*self.old_dimensions 
+                    continue
+                elif cix_num_count > self.layers:
+                    line = self.replace_number(line, str(cix_num_count), str(cix_num_count + 1 - self.layers))
+                    
+            modified_lines.append(line)
+            i += 1
         self.modified_content = "".join(modified_lines)
         self.lines = modified_lines
 
@@ -146,7 +201,9 @@ class DMFTFileModifier:
         self.read_file()
         self.replace_parameters()
         self.independent_components()
+        self.delete_matrices()
         self.sigind_matrix()
+        self.transformation_matrix()
         self.write_modified_content(new_file_name)
         print(f"The file '{self.file_name}' has been modified and saved as '{new_file_name}'.")
 
