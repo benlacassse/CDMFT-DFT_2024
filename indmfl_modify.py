@@ -28,6 +28,28 @@ class DMFTFileModifier:
         if self.layers == 1:
             raise ValueError('No changes due to no additional layers.')
 
+    def replace_cix(self):
+        cix_count = 0
+        modified_lines = copy.deepcopy(self.lines)  
+        for i, line in enumerate(self.lines):
+            if 'cix' in line:
+                cix_count += 1
+                count = 0
+                matches = re.findall(r'\d+', line)
+                for match in re.finditer(r'\d+', line):
+                    count += 1
+                    if count == 3:
+                        position = match.start()
+                        break
+                if cix_count <= self.layers*self.nodes:
+                    modified_lines[i] = line[:position] + ' '*(len(matches[2])-1) + '1' + line[position + len(matches[2]):]
+                elif cix_count <= self.layers*self.nodes*2:
+                    modified_lines[i] = line[:position] + ' '*(len(matches[2])-1) + str(int(matches[2])-layers+1) + line[position + len(matches[2]):]
+                else:
+                    break
+        self.lines = modified_lines
+        self.modified_content = "".join(modified_lines)
+        
     def replace_parameters(self):
         search_line = False
         modify_next_line = False
@@ -88,10 +110,6 @@ class DMFTFileModifier:
         self.modified_content = "".join(modified_lines)
             
     def modify_line(self, line, index):
-        # Check if the line is only made of zeros or spaces
-        if set(line.strip()) <= {'0', ' '}:
-            return line
-        
         modified_line = []
         for char in line.strip():
             if char.isdigit():
@@ -106,6 +124,67 @@ class DMFTFileModifier:
 
         return ''.join(modified_line)
 
+    def block_finder(self):
+        search_line = False
+        block_ind = 0
+        block_list = [] 
+        for i, line in enumerate(self.lines):
+            if 'Sigind ' in line:
+                search_line = True
+                continue
+            if search_line == True :
+                if block_ind <  self.nodes:
+                    j = 0
+                    for char in line.strip():
+                        j +=1
+                        if char.isdigit():
+                            if char != '0':
+                                line_block = line[:j]
+                    block_list.append(line_block)
+                    block_ind += 1
+        return block_list
+
+    # def sigind_matrix2(self):
+    #     sigind_count = 0
+    #     modified_lines = copy.deepcopy(self.lines)  
+    #     liste = list(np.hstack((np.arange(self.layers)[::-1], np.arange(1, self.layers))))
+    #     print(liste)
+    #     for i, line in enumerate(self.lines):
+    #         this_line = line.rstrip()
+    #         if 'Sigind ' in line:
+    #             sigind_count += 1
+    #             j=0
+    #             continue
+    #         if sigind_count == 1 : 
+    #             if j < self.nodes:
+    #                 for l in range(self.layers):
+    #                     new_line = ''
+    #                     for k in range(self.layers):
+    #                         new_line = new_line + self.modify_line(self.block_finder()[j], liste[self.layers-1+k-l]) + ' '
+    #                         print(self.ind_components)
+                            
+    #                     if l == 0:
+    #                         modified_lines[i] = new_line + '0 '*(self.old_dimensions - self.nodes)*self.layers + '\n'
+    #                     else:
+    #                         modified_lines.insert(i + self.nodes, new_line + '0 '*(self.old_dimensions - self.nodes)*self.layers + '\n')
+    #                 j += 1
+    #             elif j >= self.nodes * self.layers and j < (self.old_dimensions + self.nodes):
+    #                     new_line = '0 '*self.old_dimensions*self.layers + '\n'
+    #                     modified_lines[i] = new_line
+    #                     modified_lines.insert(i + self.old_dimensions - self.nodes, new_line)
+    #                     j += 1
+    #             else:
+    #                 j += 1
+    #         # elif sigind_count > 1:
+    #         #     if j <= self.old_dimensions/self.nodes:
+    #         #         this_line = line.rstrip()
+    #         #         modified_lines[i + self.old_dimensions*(self.layers-1)] = self.modify_line(this_line, self.layers-1) +'\n'
+    #         #         j += 1
+
+
+    #     self.modified_content = "".join(modified_lines)
+    #     self.lines = modified_lines
+    
     def sigind_matrix(self):
         sigind_count = 0
         modified_lines = copy.deepcopy(self.lines)  
@@ -199,6 +278,7 @@ class DMFTFileModifier:
     def process_file(self, new_file_name):
         self.validate_layers()
         self.read_file()
+        self.replace_cix()
         self.replace_parameters()
         self.independent_components()
         self.delete_matrices()
@@ -211,6 +291,7 @@ class DMFTFileModifier:
 if __name__ == "__main__":
     # Define the file name and parameters
     file_name = 'dmft_U12_bz2.indmfl'
+    # file_name = 'dmft_U12_bz2 - Copy.indmfl'
     new_file_name = 'dmft_U12_bz2_modified.indmfl'
     layers = 2
     nodes = 4
