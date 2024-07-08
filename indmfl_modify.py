@@ -301,7 +301,7 @@ class DMFTFileModifier:
 if __name__ == "__main__":
     # Define the file name and parameters
     file_name = 'dmft_U12_bz2.indmfl'
-    # file_name = 'dmft_U12_bz2 - Copy.indmfl'
+    # file_name = 'dmft_U12_bz2_3couches.indmfl'
     new_file_name = 'dmft_U12_bz2_modified.indmfl'
     layers = 2
     nodes = 4
