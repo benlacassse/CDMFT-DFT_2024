@@ -144,47 +144,6 @@ class DMFTFileModifier:
                     block_ind += 1
         return block_list
 
-    # def sigind_matrix2(self):
-    #     sigind_count = 0
-    #     modified_lines = copy.deepcopy(self.lines)  
-    #     liste = list(np.hstack((np.arange(self.layers)[::-1], np.arange(1, self.layers))))
-    #     print(liste)
-    #     for i, line in enumerate(self.lines):
-    #         this_line = line.rstrip()
-    #         if 'Sigind ' in line:
-    #             sigind_count += 1
-    #             j=0
-    #             continue
-    #         if sigind_count == 1 : 
-    #             if j < self.nodes:
-    #                 for l in range(self.layers):
-    #                     new_line = ''
-    #                     for k in range(self.layers):
-    #                         new_line = new_line + self.modify_line(self.block_finder()[j], liste[self.layers-1+k-l]) + ' '
-    #                         print(self.ind_components)
-                            
-    #                     if l == 0:
-    #                         modified_lines[i] = new_line + '0 '*(self.old_dimensions - self.nodes)*self.layers + '\n'
-    #                     else:
-    #                         modified_lines.insert(i + self.nodes, new_line + '0 '*(self.old_dimensions - self.nodes)*self.layers + '\n')
-    #                 j += 1
-    #             elif j >= self.nodes * self.layers and j < (self.old_dimensions + self.nodes):
-    #                     new_line = '0 '*self.old_dimensions*self.layers + '\n'
-    #                     modified_lines[i] = new_line
-    #                     modified_lines.insert(i + self.old_dimensions - self.nodes, new_line)
-    #                     j += 1
-    #             else:
-    #                 j += 1
-    #         # elif sigind_count > 1:
-    #         #     if j <= self.old_dimensions/self.nodes:
-    #         #         this_line = line.rstrip()
-    #         #         modified_lines[i + self.old_dimensions*(self.layers-1)] = self.modify_line(this_line, self.layers-1) +'\n'
-    #         #         j += 1
-
-
-    #     self.modified_content = "".join(modified_lines)
-    #     self.lines = modified_lines
-    
     def sigind_matrix(self):
         sigind_count = 0
         modified_lines = copy.deepcopy(self.lines)  
@@ -217,40 +176,90 @@ class DMFTFileModifier:
         self.modified_content = "".join(modified_lines)
         self.lines = modified_lines
 
-    def transformation_matrix(self):
-        search_line = False
-        modified_lines = copy.deepcopy(self.lines)  
-        j=1
+    def process_line(self, line):
+        # Remove spaces and process the digits
+        digits = line.replace(' ', '')
+        non_zero_chars = [ch for ch in digits if ch != '0']
+        zero_count = digits.count('0')
+        
+        # Append zeros to the end and re-add spaces between digits
+        processed_digits = non_zero_chars + ['0'] * zero_count
+        return ' '.join(processed_digits)
+
+    def process_lines(self, lines):
+        processed_lines = []
+        zero_only_lines = []
+        
+        for line in lines:
+            stripped_line = line.replace(' ', '')
+            if all(ch == '0' for ch in stripped_line):
+                zero_only_lines.append(line)
+            else:
+                processed_lines.append(self.process_line(line))
+        
+        # Append lines with only zeros at the end
+        return processed_lines + zero_only_lines
+
+    def organize_matrix(self):
+        line_found = False
+        modified_lines = copy.deepcopy(self.lines)
+        matrix_lines = []  
+        j = 0
         for i, line in enumerate(self.lines):
-            if search_line:
-                if j <= self.old_dimensions:
-                    this_line = line.rstrip()[1:]
-                    if line.rstrip()[0] == ' ':
-                        new_line = ' '
-                    else:
-                        new_line = '-'
-                    for l in range(self.layers):
-                        for k in range(self.layers):
-                            if l == k:
-                                new_line = new_line + this_line + '    '
-                            else:
-                                new_line = new_line + '0.00000000  0.00000000    '*self.old_dimensions
-                            
-                        if l == 0:
-                            modified_lines[i] = new_line + '\n'
-                        else:
-                            modified_lines.insert(i + self.old_dimensions+(l-1)*j, new_line + '\n')
-                        new_line = ' '
-                    j += 1
-                else:
-                    search_line = False
+            this_line = line.rstrip()
+            if 'Sigind ' in line:
+                line_found = True
+                continue
+            if line_found == True: 
+                matrix_lines.append(this_line)
+                if len(matrix_lines) == self.old_dimensions * self.layers:
+                    line_found = False
+                    break
 
-            if line.strip().startswith('#---------------- # T'):
-                search_line = True
+        organized_matrix_lines = self.process_lines(matrix_lines)
 
+        for i, line in enumerate(self.lines):
+            this_line = line.rstrip()
+            if 'Sigind ' in line:
+                line_found = True
+                continue
+            if line_found == True: 
+                modified_lines[i] = organized_matrix_lines[j] + '\n'
+                j += 1
+                if j == self.old_dimensions * self.layers:
+                    break
         self.modified_content = "".join(modified_lines)
         self.lines = modified_lines
-    
+
+    def transformation_matrix(self):
+        modified_lines = []
+        start_index = self.lines.index('#---------------- # Transformation matrix follows -----------\n') +1
+        modified_lines = self.lines[:start_index]
+        end = self.lines[start_index+self.old_dimensions:]
+        for i in range(start_index, start_index+ self.old_dimensions, self.nodes):
+            block = []
+            for line in self.lines[i:i+self.nodes]:
+                if '\n' not in line:
+                    line = line + '\n'
+                block.append(line)
+            for j in range(self.layers):
+                new_block = self.adjust_lines(block, j)
+                for row in new_block:
+                    modified_lines.append(row)
+        for row in end:
+            modified_lines.append(row)
+        self.modified_content = "".join(modified_lines)
+        self.lines = modified_lines 
+                    
+    def adjust_lines(self, block, a):
+        new_block = []
+        k = 0
+        for line in block:
+            new_line = ' '+'0.00000000  0.00000000    '*int(self.old_dimensions/self.nodes)*((self.layers-1)*k+a) + line[1:-1] +'    0.00000000  0.00000000'*int(self.old_dimensions/self.nodes)*((self.layers-1)*(self.nodes-k)-a)+ '\n'
+            new_block.append(new_line)
+            k += 1
+        return new_block
+
     def delete_matrices(self):
         cix_num_count = 0
         modified_lines = []
@@ -283,6 +292,7 @@ class DMFTFileModifier:
         self.independent_components()
         self.delete_matrices()
         self.sigind_matrix()
+        self.organize_matrix()
         self.transformation_matrix()
         self.write_modified_content(new_file_name)
         print(f"The file '{self.file_name}' has been modified and saved as '{new_file_name}'.")
