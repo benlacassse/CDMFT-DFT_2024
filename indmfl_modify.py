@@ -392,10 +392,10 @@ class DMFTFileModifier:
 
 if __name__ == "__main__":
     file_name = 'dmft_U12_bz2.indmfl'
-    # file_name = 'dmft_U12_bz2_3couches.indmfl'
-    # file_name = 'dmft_U12_bz2_4couches.indmfl'
-    # file_name = 'dmft_U12_bz2_5couches.indmfl'
-    layers = 2
+    file_name = 'dmft_U12_bz2_3couches.indmfl'
+    file_name = 'dmft_U12_bz2_4couches.indmfl'
+    file_name = 'dmft_U12_bz2_5couches.indmfl'
+    layers = 5
     nodes = 4
 
 
