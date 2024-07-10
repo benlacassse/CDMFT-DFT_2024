@@ -82,7 +82,7 @@ class DMFTFileModifier:
                         line = self.replace_number(line, str(self.old_dimensions), new_max_dimensions)
 
                         self.ind_components = int(matches[2])
-                        new_max_ind_components = str(self.ind_components * self.layers)
+                        new_max_ind_components = str(self.ind_components * (self.generate_diagonal_pattern_matrix()[1]+self.layers//2 + self.layers%2))
                         line = self.replace_number(line, str(self.ind_components), new_max_ind_components)
                     modified_lines[i] = line
 
@@ -98,15 +98,35 @@ class DMFTFileModifier:
         return re.sub(r'\b{}\b'.format(re.escape(old)), new, line, 1)
 
     def independent_components(self):
-        search_line = False
         modified_lines = copy.deepcopy(self.lines)
-        for i, line in enumerate(self.lines):
-            if search_line:
-                line = (line.rstrip() + ' ')*self.layers + '\n'
-                modified_lines[i] = line
-                break
+        line_count = 0
+        found_line = False
+        ind_comp_list = []
+        for line in self.lines:
             if line.strip().startswith('#---------------- # Independent'):
-                search_line = True 
+                line_count += 1
+                found_line = True
+                continue
+            if found_line:
+                if line_count > self.layers:
+                    break
+                if line.rstrip() not in ind_comp_list:
+                    ind_comp_list.append(line.rstrip())
+                found_line = False
+        new_ind_comp = ' '.join(ind_comp_list)
+        num_comp = self.ind_components * self.generate_diagonal_pattern_matrix()[1]
+        found_line = False
+        for i in range(num_comp):
+            x = i+self.ind_components*len(ind_comp_list)+1
+            new_ind_comp += ' ' + f"'x2y2-{x}'"
+        for i, line in enumerate(self.lines):
+            if line.strip().startswith('#---------------- # Independent'):
+                found_line = True
+                continue
+            if found_line:
+                modified_lines[i] = new_ind_comp + '\n'
+                break
+            
         self.lines = modified_lines
         self.modified_content = "".join(modified_lines)
 
@@ -217,7 +237,6 @@ class DMFTFileModifier:
                     this_line = line.rstrip()
                     modified_lines[i + self.old_dimensions*(self.layers-1)] = self.modify_line(this_line) +'\n'
                     j += 1
-                    # PROBLEM!!!!
 
 
         self.modified_content = "".join(modified_lines)
@@ -239,7 +258,7 @@ class DMFTFileModifier:
             jump = 6
 
         for i, row in enumerate(matrix):
-            for j, coefficient in enumerate(row):
+            for j, _ in enumerate(row):
                 matrix[i][j] -= 1
 
         return matrix, jump
