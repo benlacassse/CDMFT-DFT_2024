@@ -4,7 +4,8 @@ import numpy as np
 
 class DMFTFileModifier:
     def __init__(self, file_name, layers=1, nodes=4):
-        self.file_name = file_name
+        self.indmfl_name = file_name + '.indmfl'
+        self.indmfi_name = file_name + '.indmfi'
         self.layers = layers
         self.nodes = nodes
         self.lines = []
@@ -12,15 +13,16 @@ class DMFTFileModifier:
         self.modified_content = ""
         self.old_dimensions = 0
         self.ind_components = 0
+        self.cluster_matrix = []
 
-    def read_file(self):
+    def read_file(self, file_name):
         try:
-            with open(self.file_name, 'r') as file:
+            with open(file_name, 'r') as file:
                 self.lines = file.readlines()
-            with open(self.file_name, 'r') as file:
+            with open(file_name, 'r') as file:
                 self.content = file.read()
         except FileNotFoundError:
-            raise FileNotFoundError(f"The file '{self.file_name}' was not found.")
+            raise FileNotFoundError(f"The file '{file_name}' was not found.")
         except Exception as e:
             raise Exception(f"An error occurred while reading the file: {e}")
 
@@ -149,26 +151,6 @@ class DMFTFileModifier:
 
         return ' '.join(modified_line)
 
-    def block_finder(self):
-        search_line = False
-        block_ind = 0
-        block_list = [] 
-        for line in self.lines:
-            if 'Sigind ' in line:
-                search_line = True
-                continue
-            if search_line == True :
-                if block_ind <  self.nodes:
-                    j = 0
-                    for char in line.strip():
-                        j +=1
-                        if char.isdigit():
-                            if char != '0':
-                                line_block = line[:j]
-                    block_list.append(line_block)
-                    block_ind += 1
-        return block_list
-
     def create_sigind_matrix(self):
         matrix_data = []
         sigind_found = False
@@ -292,15 +274,14 @@ class DMFTFileModifier:
                     line_found = False
                     break
 
-        organized_matrix_lines = self.process_lines(matrix_lines)
-
+        self.cluster_matrix = self.process_lines(matrix_lines)
         for i, line in enumerate(self.lines):
             this_line = line.rstrip()
             if 'Sigind ' in line:
                 line_found = True
                 continue
             if line_found == True: 
-                modified_lines[i] = organized_matrix_lines[j] + '\n'
+                modified_lines[i] = self.cluster_matrix[j] + '\n'
                 j += 1
                 if j == self.old_dimensions * self.layers:
                     break
@@ -375,10 +356,68 @@ class DMFTFileModifier:
         with open(new_file_name, 'w') as file:
             file.write(self.modified_content)
 
+    def indmfi(self):
+        modified_lines = []
+        sigind_count = 0
+        i = 0
+        while i < len(self.lines):
+            line = self.lines[i]
+            if i == 0:
+                line = self.replace_number(line, str(2*(self.layers//2+self.layers%2)), str(self.layers//2+self.layers%2+1))
+                modified_lines.append(line)
+                i += 1
+                
+            elif '# dimension of this sigind block' in line:
+                if sigind_count < (self.layers//2 + self.layers%2):
+                    if sigind_count == 0:
+                        line = self.replace_number(line, str(self.old_dimensions), str(self.old_dimensions*self.layers))
+                        modified_lines.append(line)
+                        for row in self.cluster_matrix:
+                            modified_lines.append(row+'\n')
+
+                    i += self.old_dimensions + 1
+                else:
+                    modified_lines.append(line)
+                    i += 1
+                
+                sigind_count += 1
+            else:
+                
+                modified_lines.append(self.modify_line(line) + '\n')
+                i += 1
+        self.modified_content = "".join(modified_lines)
+        self.lines = modified_lines 
+
+
+    def sig(self):
+        modified_lines = []
+        position = self.ind_components*(self.layers//2+self.layers%2)
+        for line in self.lines:
+            match = re.search(r'(\[.*\])', line)
+            if match:
+                s_oo_str = match.group(1)
+                s_oo = eval(s_oo_str)       
+                s_oo[position:position] = [float(0)]*self.ind_components*self.generate_diagonal_pattern_matrix()[1]
+                match = re.search('s_oo', line)
+                if match:
+                    modified_lines.append('# s_oo= '+str(s_oo)+'\n')
+                else:
+                    modified_lines.append('# Edc= '+str(s_oo)+'\n')
+            else:
+                str_list = line.split()
+                float_list = [float(num) for num in str_list]
+                float_list[2*position+1:2*position+1] = [float(0)]*self.ind_components*self.generate_diagonal_pattern_matrix()[1]*2
+                str_list = [f"{num:.18e}" for num in float_list]
+                new_line = ' '.join(str_list)
+                modified_lines.append(new_line + '\n')
+        self.modified_content = "".join(modified_lines)
+        self.lines = modified_lines         
+
+
     def process_file(self):
-        new_file_name = self.file_name[:-7] + '_modified.indmfl'
+        new_file_name = self.indmfl_name[:-7] + '_modified.indmfl'
         self.validate_layers()
-        self.read_file()
+        self.read_file(self.indmfl_name)
         self.replace_cix()
         self.replace_parameters()
         self.independent_components()
@@ -388,13 +427,33 @@ class DMFTFileModifier:
         self.organize_matrix()
         self.transformation_matrix()
         self.write_modified_content(new_file_name)
-        print(f"The file '{self.file_name}' has been modified and saved as '{new_file_name}'.")
+        print(f"The file '{self.indmfl_name}' has been modified and saved as '{new_file_name}'.")
+
+
+        new_file_name = self.indmfl_name[:-7] + '_modified.indmfi'
+        self.read_file(self.indmfi_name)
+        self.indmfi()
+        self.write_modified_content(new_file_name)
+        print(f"The file '{self.indmfi_name}' has been modified and saved as '{new_file_name}'.")
+
+
+        new_file_name = 'sig_modified.inp'
+        self.read_file('sig.inp')
+        self.sig()
+        self.write_modified_content(new_file_name)
+        print(f"The file 'sig.inp' has been modified and saved as '{new_file_name}'.")
+
+
+
+
+
 
 if __name__ == "__main__":
-    file_name = 'dmft_U12_bz2.indmfl'
-    file_name = 'dmft_U12_bz2_3couches.indmfl'
-    file_name = 'dmft_U12_bz2_4couches.indmfl'
-    file_name = 'dmft_U12_bz2_5couches.indmfl'
+    file_name = 'dmft_U12_bz2'
+    # file_name = 'dmft_U12_bz2_3couches'
+    # file_name = 'dmft_U12_bz2_4couches'
+    file_name = 'dmft_U12_bz2_5couches'
+
     layers = 5
     nodes = 4
 

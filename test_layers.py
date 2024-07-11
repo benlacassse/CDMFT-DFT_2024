@@ -1,4 +1,27 @@
-    # def sigind_matrix(self):
+import re
+
+# Input string
+input_str = "# s_oo= [8.378774360906485, -5.062941074773608e-06, -5.420631497805431e-07, 8.497322152354982, -5.261953537095226e-06, -4.6285027314485405e-07, 22.604774787609472, 24.388684989295584, 22.57470472090337, 24.2512304589036]"
+
+# Regular expression to match the list
+match = re.search(r'# s_oo= (\[.*\])', input_str)
+
+# Check if a match was found and extract the list
+if match:
+    s_oo_str = match.group(1)
+    s_oo = eval(s_oo_str)  # Use eval to convert the string representation to an actual list
+    print(s_oo)
+else:
+    print("No list found in the string.")  
+
+
+
+print(len('2.293927038882135824e-02'))
+
+
+
+
+  # def sigind_matrix(self):
     #     sigind_count = 0
     #     modified_lines = copy.deepcopy(self.lines)  
     #     liste = list(np.hstack((np.arange(self.layers)[::-1], np.arange(1, self.layers))))
@@ -62,3 +85,23 @@
     #     #         # Determine the value for matrix[i][j]
     #     #         diag_num = min(i, j, n - 1 - i, n - 1 - j) + liste[diff]
     #     #         matrix[i, j] = diag_num
+
+    # def block_finder(self):
+    #     search_line = False
+    #     block_ind = 0
+    #     block_list = [] 
+    #     for line in self.lines:
+    #         if 'Sigind ' in line:
+    #             search_line = True
+    #             continue
+    #         if search_line == True :
+    #             if block_ind <  self.nodes:
+    #                 j = 0
+    #                 for char in line.strip():
+    #                     j +=1
+    #                     if char.isdigit():
+    #                         if char != '0':
+    #                             line_block = line[:j]
+    #                 block_list.append(line_block)
+    #                 block_ind += 1
+    #     return block_list
