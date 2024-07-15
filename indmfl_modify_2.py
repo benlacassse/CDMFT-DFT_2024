@@ -49,7 +49,7 @@ class DMFTFileModifier:
                 if cix_count <= self.layers*self.nodes:
                     modified_lines[i] = line[:position] + ' '*(len(matches[2])-1) + '1' + line[position + len(matches[2]):]
                 elif cix_count <= self.layers*self.nodes*2:
-                    modified_lines[i] = line[:position] + ' '*(len(matches[2])-1) + str(int(matches[2])-layers+1) + line[position + len(matches[2]):]
+                    modified_lines[i] = line[:position] + ' '*(len(matches[2])-1) + str(int(matches[2])-self.layers+1) + line[position + len(matches[2]):]
                 else:
                     break
         self.lines = modified_lines
@@ -63,7 +63,9 @@ class DMFTFileModifier:
             if modify_next_line:
                 matches = re.findall(r'\d+', line)
                 if matches:
+                    new_max_dimensions = str(self.old_dimensions * self.layers)
                     line = self.replace_number(line, str(self.old_dimensions), new_max_dimensions)
+                    new_max_ind_components = str(self.ind_components * (self.generate_diagonal_pattern_matrix()[1]+self.layers//2 + self.layers%2))
                     line = self.replace_number(line, str(self.ind_components), new_max_ind_components)
                 modified_lines[i] = line
                 modify_next_line = False
@@ -227,240 +229,40 @@ class DMFTFileModifier:
 
     def generate_diagonal_pattern_matrix(self):
         n = self.layers
-        if n == 2:
-            matrix = np.array([[1, 2],[2, 1]])
-            jump = 1
-        elif n == 3:
-            matrix = np.array([[1, 4, 3],[4, 1, 3], [3, 3, 2]])
-            jump = 2
-        elif n == 4:
-            matrix = np.array([[1, 6, 4, 5],[6, 1, 5, 4], [4, 5, 2, 3], [5, 4, 3, 2]])
-            jump = 4
-        elif n == 5:
-            matrix = np.array([[1, 9, 7, 8, 6],[9, 1, 8, 7, 6], [7, 8, 2, 5, 4], [8, 7, 5, 2, 4], [6, 6, 4, 4, 3]])
-            jump = 6
 
-        for i, row in enumerate(matrix):
-            for j, _ in enumerate(row):
-                matrix[i][j] -= 1
+        diagonal_matrix = np.zeros((n, n))
+        for i in range(n):
+            for j in range(n):
+                if i == j:
+                    diagonal_matrix[i, j] = 1
 
-        return matrix, jump
+        return diagonal_matrix, n
 
-    def process_lines(self, lines):
-        value_lines = []
-        zero_lines = []
-        
-        for line in lines:
-            stripped_line = line.replace(' ', '')
-            if all(ch == '0' for ch in stripped_line):
-                zero_lines.append(line)
-            else:
-                value_lines.append(line)
-        
-        return value_lines + zero_lines
-
-    def organize_matrix(self):
-        line_found = False
-        modified_lines = copy.deepcopy(self.lines)
-        matrix_lines = []  
-        j = 0
-        for i, line in enumerate(self.lines):
-            this_line = line.rstrip()
-            if 'Sigind ' in line:
-                line_found = True
-                continue
-            if line_found == True: 
-                matrix_lines.append(this_line)
-                if len(matrix_lines) == self.old_dimensions * self.layers:
-                    line_found = False
-                    break
-
-        self.cluster_matrix = self.process_lines(matrix_lines)
-        for i, line in enumerate(self.lines):
-            this_line = line.rstrip()
-            if 'Sigind ' in line:
-                line_found = True
-                continue
-            if line_found == True: 
-                modified_lines[i] = self.cluster_matrix[j] + '\n'
-                j += 1
-                if j == self.old_dimensions * self.layers:
-                    break
-        self.modified_content = "".join(modified_lines)
-        self.lines = modified_lines
-
-    def transformation_matrix(self):
-        if self.layers == 2:
-            repetition = [2]
-        elif self.layers == 3:
-            repetition = [2, 1]
-        elif self.layers == 4:
-            repetition = [2, 2]
-        elif self.layers == 5:
-            repetition = [2, 2, 1]
-
-        modified_lines = []
-        start_index = self.lines.index('#---------------- # Transformation matrix follows -----------\n') +1
-        modified_lines = self.lines[:start_index]
-        end = self.lines[start_index+self.old_dimensions:]
-        for i in range(start_index, start_index+ self.old_dimensions, self.nodes):
-            block = []
-            for line in self.lines[i:i+self.nodes]:
-                if '\n' not in line:
-                    line += '\n'
-                block.append(line)
-            new_block = self.adjust_lines(block, repetition)
-            for row in new_block:
-                modified_lines.append(row)
-        for row in end:
-            modified_lines.append(row)
-        self.modified_content = "".join(modified_lines)
-        self.lines = modified_lines 
-                    
-    def adjust_lines(self, block, repetition):
-        new_block = []
-        before = 0
-        after = self.layers
-        for i, value in enumerate(repetition):
-            after -= value
-            for a in range(value):
-                k = 0
-                for line in block:
-                    new_line =  '0.00000000  0.00000000    '*int(self.old_dimensions/self.nodes)*((value-1)*k+a) + line[1:-1] +'    0.00000000  0.00000000'*int(self.old_dimensions/self.nodes)*((value-1)*(self.nodes-k)-a)
-                    new_line =' ' + '0.00000000  0.00000000    '*self.old_dimensions*before + new_line + '    0.00000000  0.00000000'*self.old_dimensions*after + '\n'
-                    new_block.append(new_line)
-                    k += 1
-            before += value
-        return new_block
-
-    def delete_matrices(self):
-        cix_num_count = 0
-        modified_lines = []
-        
-        i = 0
-        while i < len(self.lines):
-            line = self.lines[i]
-            if 'cix-num' in line:
-                cix_num_count += 1
-                if cix_num_count > 1 and cix_num_count <= self.layers:
-                    i = i + 5 + 2*self.old_dimensions 
-                    continue
-                elif cix_num_count > self.layers:
-                    line = self.replace_number(line, str(cix_num_count), str(cix_num_count + 1 - self.layers))
-                    
-            modified_lines.append(line)
-            i += 1
-        self.modified_content = "".join(modified_lines)
-        self.lines = modified_lines
-
-    def write_modified_content(self, new_file_name):
-        with open(new_file_name, 'w') as file:
+    def update_file(self, file_name):
+        with open(file_name, 'w') as file:
             file.write(self.modified_content)
-
-    def indmfi(self):
-        modified_lines = []
-        sigind_count = 0
-        i = 0
-        while i < len(self.lines):
-            line = self.lines[i]
-            if i == 0:
-                line = self.replace_number(line, str(2*(self.layers//2+self.layers%2)), str(self.layers//2+self.layers%2+1))
-                modified_lines.append(line)
-                i += 1
-                
-            elif '# dimension of this sigind block' in line:
-                if sigind_count < (self.layers//2 + self.layers%2):
-                    if sigind_count == 0:
-                        line = self.replace_number(line, str(self.old_dimensions), str(self.old_dimensions*self.layers))
-                        modified_lines.append(line)
-                        for row in self.cluster_matrix:
-                            modified_lines.append(row+'\n')
-
-                    i += self.old_dimensions + 1
-                else:
-                    modified_lines.append(line)
-                    i += 1
-                
-                sigind_count += 1
-            else:
-                
-                modified_lines.append(self.modify_line(line) + '\n')
-                i += 1
-        self.modified_content = "".join(modified_lines)
-        self.lines = modified_lines 
-
-
-    def sig(self):
-        modified_lines = []
-        position = self.ind_components*(self.layers//2+self.layers%2)
-        for line in self.lines:
-            match = re.search(r'(\[.*\])', line)
-            if match:
-                s_oo_str = match.group(1)
-                s_oo = eval(s_oo_str)       
-                s_oo[position:position] = [float(0)]*self.ind_components*self.generate_diagonal_pattern_matrix()[1]
-                match = re.search('s_oo', line)
-                if match:
-                    modified_lines.append('# s_oo= '+str(s_oo)+'\n')
-                else:
-                    modified_lines.append('# Edc= '+str(s_oo)+'\n')
-            else:
-                str_list = line.split()
-                float_list = [float(num) for num in str_list]
-                float_list[2*position+1:2*position+1] = [float(0)]*self.ind_components*self.generate_diagonal_pattern_matrix()[1]*2
-                str_list = [f"{num:.18e}" for num in float_list]
-                new_line = ' '.join(str_list)
-                modified_lines.append(new_line + '\n')
-        self.modified_content = "".join(modified_lines)
-        self.lines = modified_lines         
-
-
-    def process_file(self):
-        new_file_name = self.indmfl_name[:-7] + '_modified.indmfl'
-        self.validate_layers()
-        self.read_file(self.indmfl_name)
-        self.replace_cix()
-        self.replace_parameters()
-        self.independent_components()
-        self.delete_matrices()
-        self.create_sigind_matrix()
-        self.replace_sigind_matrix()
-        self.organize_matrix()
-        self.transformation_matrix()
-        self.write_modified_content(new_file_name)
-        print(f"The file '{self.indmfl_name}' has been modified and saved as '{new_file_name}'.")
-
-
-        new_file_name = self.indmfl_name[:-7] + '_modified.indmfi'
-        self.read_file(self.indmfi_name)
-        self.indmfi()
-        self.write_modified_content(new_file_name)
-        print(f"The file '{self.indmfi_name}' has been modified and saved as '{new_file_name}'.")
-
-
-        new_file_name = 'sig_modified.inp'
-        self.read_file('sig.inp')
-        self.sig()
-        self.write_modified_content(new_file_name)
-        print(f"The file 'sig.inp' has been modified and saved as '{new_file_name}'.")
-
-
-
-
-
+            file.write('\n')
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
         print("Usage: python script_name.py <file_name> <layers> <nodes>")
         sys.exit(1)
-
+    
     file_name = sys.argv[1]
     layers = int(sys.argv[2])
     nodes = int(sys.argv[3])
 
-
     modifier = DMFTFileModifier(file_name, layers, nodes)
     try:
-        modifier.process_file()
+        modifier.read_file(modifier.indmfl_name)
+        modifier.read_file(modifier.indmfi_name)
+        modifier.validate_layers()
+        modifier.replace_cix()
+        modifier.replace_parameters()
+        modifier.independent_components()
+        modifier.replace_sigind_matrix()
+        modifier.update_file(modifier.indmfl_name)
+        modifier.update_file(modifier.indmfi_name)
+        print("Files updated successfully.")
     except Exception as e:
-        print("Error:", e)
+        print(f"An error occurred: {e}")
