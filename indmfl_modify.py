@@ -1,7 +1,11 @@
+#!/usr/bin/env python
+
 import re
 import copy
 import numpy as np
 import sys
+
+
 
 class DMFTFileModifier:
     def __init__(self, file_name, layers=1, nodes=4):
@@ -356,6 +360,10 @@ class DMFTFileModifier:
     def write_modified_content(self, new_file_name):
         with open(new_file_name, 'w') as file:
             file.write(self.modified_content)
+    
+    def write_copied_content(self, new_file_name):
+        with open(new_file_name, 'w') as file:
+            file.write(self.content)
 
     def indmfi(self):
         modified_lines = []
@@ -416,9 +424,10 @@ class DMFTFileModifier:
 
 
     def process_file(self):
-        new_file_name = self.indmfl_name[:-7] + '_modified.indmfl'
+        new_file_name = self.indmfl_name[:-7] + '_copy.indmfl'
         self.validate_layers()
         self.read_file(self.indmfl_name)
+        self.write_copied_content(new_file_name)
         self.replace_cix()
         self.replace_parameters()
         self.independent_components()
@@ -427,22 +436,25 @@ class DMFTFileModifier:
         self.replace_sigind_matrix()
         self.organize_matrix()
         self.transformation_matrix()
-        self.write_modified_content(new_file_name)
-        print(f"The file '{self.indmfl_name}' has been modified and saved as '{new_file_name}'.")
+        self.write_modified_content(self.indmfl_name)
+        print(f"The file '{self.indmfl_name}' has been modified, with the old copy '{new_file_name}'.")
 
 
-        new_file_name = self.indmfl_name[:-7] + '_modified.indmfi'
+        new_file_name = self.indmfl_name[:-7] + '_copy.indmfi'
         self.read_file(self.indmfi_name)
+        self.write_copied_content(new_file_name)
         self.indmfi()
-        self.write_modified_content(new_file_name)
-        print(f"The file '{self.indmfi_name}' has been modified and saved as '{new_file_name}'.")
+        self.write_modified_content(self.indmfi_name)
+        print(f"The file '{self.indmfi_name}' has been modified, with the old copy '{new_file_name}'.")
 
 
-        new_file_name = 'sig_modified.inp'
+        new_file_name = 'sig_copy.inp'
         self.read_file('sig.inp')
+        self.write_copied_content(new_file_name)
         self.sig()
-        self.write_modified_content(new_file_name)
-        print(f"The file 'sig.inp' has been modified and saved as '{new_file_name}'.")
+        self.write_modified_content('sig.inp')
+        print(f"The file 'sig.inp' has been modified, with the old copy '{new_file_name}'.")
+
 
 
 
