@@ -156,6 +156,12 @@ def set_Hyb(I, ret=False):
                                 iclus*K_hyb.L*2:(iclus+1)*K_hyb.L*2], 
                            iclus, False)
 
+#--------------------------------------------------------------------------------------
+class SymmetryError(Exception):
+    """Exception raised for errors in the symmetry conditions."""
+    def __init__(self, message="SymmetryError: 'with-ansym' requires 'with-nsym' to be enabled."):
+        self.message = message
+        super().__init__(self.message)
 
 #--------------------------------------------------------------------------------------
 if __name__ == '__main__':
@@ -187,8 +193,13 @@ if __name__ == '__main__':
                                         cdmft convergence (default: 32)
         --conv [conv]                  type of iteration method for the 
                                        cdmft convergence (default: 'fixed_point')
-        --with-seb                     Flag to include the on-site anomalous
-                                       bath terms usually called seb (default: False)
+        # --with-seb                     Flag to include the on-site anomalous
+        #                                bath terms usually called seb (default: False)
+        --with-nsym                     Introduce the x/y normal symmetry in the 
+                                        hopping matrix  
+        --with-ansym                    Introduce the anormal anti-symmetry x2-y2 
+                                        on the superconductivity, nsym must be True 
+                                        (default:False)
     """
 
     # check arguments provided
@@ -237,10 +248,19 @@ if __name__ == '__main__':
                         help = ('type of iteration method for the'
                                 + ' cdmft convergence (default: fixed_point)')
                         )
-    parser.add_argument('--with-seb', action = 'store_true', default = False,
-                        help=('Flag to include the on-site anomalous'
-                              + ' bath terms usually called seb (default: False)')
+    # parser.add_argument('--with-seb', action = 'store_true', default = False,
+    #                     help=('Flag to include the on-site anomalous'
+    #                           + ' bath terms usually called seb (default: False)')
+    #                     )
+    parser.add_argument('--with-nsym', action = 'store_true', default = False,
+                        help=('Flag to introduce x/y symmetry on the hopping'
+                              + ' matrix in the normal state (default: False)')
                         )
+    parser.add_argument('--with-ansym', action = 'store_true', default = False,
+                        help=('Flag to introduce x2-y2 symmetry on the anormal'
+                              + ' state with superconductivity, nsym must be true'
+                              + ' (default: False)')
+                        )      
     args = parser.parse_args()
 
     # assign arguments to variables
@@ -253,8 +273,14 @@ if __name__ == '__main__':
     maxiter = args.maxiter
     alpha = args.alpha
     conv  = args.conv
-    wseb = args.with_seb
+    # wseb = args.with_seb
+    nsym = args.with_nsym
+    ansym = args.with_ansym
 
+    # Raise error if ansym is True without activating nsym
+    if not nsym and ansym:
+        raise SymmetryError()
+    
     # set up some global parameters
     pyqcm.set_global_parameter('Hamiltonian_format', 'E')
     pyqcm.set_global_parameter('parallel_sectors')
@@ -265,10 +291,12 @@ if __name__ == '__main__':
     w_grid = frequency_grid(beta=beta, wc=wc).wr
 
     # read input from DFT+DMFT preparation
-    K_hyb = KH_import(input_file, w_grid)
+    K_hyb = KH_import(input_file, w_grid, nsym)
+
     
     # Construct the lattice model
-    SuperC = SuperCluster_model(K_hyb, wseb)
+    # SuperC = SuperCluster_model(K_hyb, wseb)
+    SuperC = SuperCluster_model(K_hyb, nsym, ansym)
     model = SuperC.get_model()
 
     # set target

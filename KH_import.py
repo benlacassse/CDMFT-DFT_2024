@@ -35,12 +35,15 @@ class KH_import:
     especially the host hybridization function. 
     """
 
-    def __init__(self, filename, w_grid):
+    def __init__(self, filename, w_grid, nsym):
         """
         :param str filename: name of text file containing the data
         :param ndarray w_grid: array of frequencies along the imaginary axis (real)
+        :param nsym: boolean, if True we add the presence of x/y 
+                        symmetry in hoping matrix
         """
         
+        self.nsym = nsym
         self.w_grid = w_grid
         self.nw = len(self.w_grid)
         # extract lines from the input file. 
@@ -139,7 +142,16 @@ class KH_import:
             else:
                 # the replacement here is necessary to differentiate
                 # bath operators of each cluster within PyQCM
-                p_str.append(self.lines[i].replace("_1", "_"+str(_iclus)))
+                if self.nsym:
+                    # introduction of the symmetry between x and y 
+                    if "5_1" in self.lines[i]:
+                        p_str.append(self.lines[i][:4]+str(_iclus)+'=1*'+self.lines[i][:2]+'3_'+str(_iclus))
+                    elif "6_1" in self.lines[i]:
+                        p_str.append(self.lines[i][:4]+str(_iclus)+'=1*'+self.lines[i][:2]+'4_'+str(_iclus))
+                    else:
+                        p_str.append(self.lines[i].replace("_1", "_"+str(_iclus)))
+                else:
+                    p_str.append(self.lines[i].replace("_1", "_"+str(_iclus)))
         
         self.parameter_string = ["" for i in range(_iclus)]
         for i in range(_iclus):
@@ -305,17 +317,21 @@ class SuperCluster_model:
     single layer), or multiple-cluster problem (e.g. tri-layer).
     """
 
-    def __init__(self, KH, wseb):
+    def __init__(self, KH, nsym, ansym):
         """
         Constructs the PyQCM lattice model. 
         :param KH: KH_import object containing the input information
-        :param wseb: boolean, if True we add the on-site anomalous
-                        terms to the model
+        # :param wseb: boolean, if True we add the on-site anomalous
+        #                 terms to the model
+        :param nsym: boolean, if True we add the presence of x/y 
+                        symmetry in hoping matrix
+        :param ansym: boolean, if True we add the presence of x2-y2 
+                        symmetry on the superconductivity
         """
         # Construct the cluster objects
         # sets : self.clusters (cluster objects), 
         #        self.CM (cluster model objects and SC bath parameter strings)
-        self._construct_clusters(KH,wseb)
+        self._construct_clusters(KH, nsym, ansym)
 
         # Set up the lattice model
         # sets: self.model (PyQCM lattice model object)
@@ -325,9 +341,9 @@ class SuperCluster_model:
     def get_model(self):
         return self.model
 
-    def _construct_clusters(self, KH, wseb):
+    def _construct_clusters(self, KH, nsym, ansym):
         """
-        Constructs the set of clusterss. We check if some clusters
+        Constructs the set of clusters. We check if some clusters
         are equivalent (they share the same KH.pair matrix). The equivalent
         ones are constructed such that only one impurity problem will
         be solved in the DMFT loop.
@@ -358,7 +374,8 @@ class SuperCluster_model:
                 self.which_cm.append(n_cm)
                 previous.append(self.c_pairs[iclus+1])
                 previous_idx.append(iclus)
-                self.CM[n_cm]= ClusterModel(str(n_cm),wseb)
+                # self.CM[n_cm]= ClusterModel(str(n_cm),wseb)
+                self.CM[n_cm]= ClusterModel(str(n_cm), nsym, ansym)
                 n_cm += 1
         
         print("\n-------------- Creation of cluster objects --------------")

@@ -15,48 +15,50 @@ class ClusterModel:
     """
     Regroup cluster model generating functions
     """
-    def __init__(self, suffix, wseb):
+    def __init__(self, suffix, nsym, ansym):
         # construct cluster operators and model
         # sets: self.CM
-        self.cluster_2x2('A1A1B1B1B2B2A2A2',suffix,wseb)
+        # self.cluster_2x2('A1A1B1B1B2B2A2A2',suffix,wseb)
+        self.cluster_2x2('A1A1B1B1B2B2A2A2', suffix, ansym)
 
         # instructions for bath parameters
         # non-independent parameters are signaled by * in the string
-        # if wseb we add the seb parameters
-        if wseb:
+
+        if ansym:
+            # Introduce both anormal anti-symmetry and normal state symmetry
+            self.bath_params_SC="""
+db3_1 =  0.0001
+db4_1 =  0.0001
+db5_1 =  -1*db3_1
+db6_1 =  -1*db4_1
+        """
+        elif nsym:
+            # Introduce only normal state symmetry
             self.bath_params_SC="""
 db1_1 =  0.0001
 db2_1 =  0.0001
 db3_1 =  0.0001
 db4_1 =  0.0001
-db5_1 =  1*db3_1
-db6_1 =  1*db4_1
-db7_1 = 0.0001
-db8_1 = 0.0001
-seb1_1 =  0.0001
-seb2_1 =  0.0001
-seb3_1 =  0.0001
-seb4_1 =  0.0001
-seb5_1 =  -1*seb3_1
-seb6_1 =  -1*seb4_1
-seb7_1 = 0.0001
-seb8_1 = 0.0001
+db5_1 =  -1*db3_1
+db6_1 =  -1*db4_1
+db7_1 =  0.0001
+db8_1 =  0.0001
         """
         else:
-            # if not, only the db
+            # Introduce no symmetry
             self.bath_params_SC="""
 db1_1 =  0.0001
 db2_1 =  0.0001
 db3_1 =  0.0001
 db4_1 =  0.0001
-db5_1 =  1*db3_1
-db6_1 =  1*db4_1
-db7_1 = 0.0001
-db8_1 = 0.0001
+db5_1 =  0.0001
+db6_1 =  0.0001
+db7_1 =  0.0001
+db8_1 =  0.0001
         """
 
     # function to create the cluster model
-    def cluster_2x2(self, reps_str, suffix, wseb):
+    def cluster_2x2(self, reps_str, suffix, ansym):
         """
         Contruct the 2x2 cluster bath model
         with the given irreps
@@ -102,11 +104,11 @@ db8_1 = 0.0001
             ))
             varia_N.append(name)
 
-            if wseb:
-                name = 'seb'+str(i+1)
-                lab = i+4+1
-                self.CM.new_operator(name, 'anomalous', [(lab, lab+no, 1.0),])
-                varia_SC.append(name)
+            # if wseb:
+            #     name = 'seb'+str(i+1)
+            #     lab = i+4+1
+            #     self.CM.new_operator(name, 'anomalous', [(lab, lab+no, 1.0),])
+            #     varia_SC.append(name)
 
             elem = []
             for j in range(ns):
@@ -115,12 +117,21 @@ db8_1 = 0.0001
             name = 'tb'+str(i+1)
             self.CM.new_operator(name, 'one-body', elem)
 
-            elem = []
-            for j in range(ns):
-                elem.append((j+1, i+ns+no+1, reps[i].signs[j]))
-                elem.append((i+ns+1, j+1+no, reps[i].signs[j]))
-            name = 'db'+str(i+1)
-            self.CM.new_operator(name, 'anomalous', elem)
+            if ansym:
+                if i in range(2,6):
+                    elem = []
+                    for j in range(ns):
+                        elem.append((j+1, i+ns+no+1, reps[i].signs[j]))
+                        elem.append((i+ns+1, j+1+no, reps[i].signs[j]))
+                    name = 'db'+str(i+1)
+                    self.CM.new_operator(name, 'anomalous', elem)
+            else:
+                elem = []
+                for j in range(ns):
+                    elem.append((j+1, i+ns+no+1, reps[i].signs[j]))
+                    elem.append((i+ns+1, j+1+no, reps[i].signs[j]))
+                name = 'db'+str(i+1)
+                self.CM.new_operator(name, 'anomalous', elem)
 
 
 
