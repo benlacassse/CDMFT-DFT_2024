@@ -145,9 +145,9 @@ class KH_import:
                 if self.nsym:
                     # introduction of the symmetry between x and y 
                     if "5_1" in self.lines[i]:
-                        p_str.append(self.lines[i][:4]+str(_iclus)+'=1*'+self.lines[i][:2]+'3_'+str(_iclus))
+                        p_str.append(self.lines[i][:4]+str(_iclus)+'=1*'+self.lines[i][:2]+'3_'+str(_iclus)+'\n')
                     elif "6_1" in self.lines[i]:
-                        p_str.append(self.lines[i][:4]+str(_iclus)+'=1*'+self.lines[i][:2]+'4_'+str(_iclus))
+                        p_str.append(self.lines[i][:4]+str(_iclus)+'=1*'+self.lines[i][:2]+'4_'+str(_iclus)+'\n')
                     else:
                         p_str.append(self.lines[i].replace("_1", "_"+str(_iclus)))
                 else:
