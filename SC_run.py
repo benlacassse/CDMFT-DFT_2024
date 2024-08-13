@@ -341,7 +341,7 @@ if __name__ == '__main__':
         # run the CDMFT with poke
         print("\n##### Running CDMFT with poke #####")
         sol = CDMFT(model, varia, beta=beta, wc=wc, host_function=set_Hyb, 
-              method='Nelder-Mead', convergence='self-energy', accur=accur, 
+              method='Nelder-Mead', convergence=conv_test, accur=accur, 
               max_value=1e6, depth=1, accur_dist = 1e-8, file='cdmft_poke.tsv',
               maxiter=maxiter, alpha=alpha, iteration = conv)
     
