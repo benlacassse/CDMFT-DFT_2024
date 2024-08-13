@@ -248,6 +248,10 @@ if __name__ == '__main__':
                         help = ('type of iteration method for the'
                                 + ' cdmft convergence (default: fixed_point)')
                         )
+    parser.add_argument('--conv-test', type = str, default = 'self-energy',
+                        help = ('type of parameter to observe to'
+                                + ' find convergence (default: self-energy)')
+                        )
     # parser.add_argument('--with-seb', action = 'store_true', default = False,
     #                     help=('Flag to include the on-site anomalous'
     #                           + ' bath terms usually called seb (default: False)')
@@ -273,6 +277,7 @@ if __name__ == '__main__':
     maxiter = args.maxiter
     alpha = args.alpha
     conv  = args.conv
+    conv_test = args.conv_test
     # wseb = args.with_seb
     nsym = args.with_nsym
     ansym = args.with_ansym
@@ -348,7 +353,7 @@ if __name__ == '__main__':
     print("\n##### Running CDMFT without poke #####")
     model.set_parameter('D',1e-9)
     sol = CDMFT(model, varia, beta=beta, wc=wc, host_function=set_Hyb, 
-        method='Nelder-Mead', convergence='self-energy', accur=accur, 
+        method='Nelder-Mead', convergence=conv_test, accur=accur, 
         max_value=1e6, depth=1, accur_dist = 1e-8, file='cdmft.tsv',
         maxiter=maxiter, alpha=alpha, iteration = conv)
 

@@ -31,7 +31,7 @@ db3_1 =  0.0001
 db4_1 =  0.0001
 db5_1 =  -1*db3_1
 db6_1 =  -1*db4_1
-        """
+"""
         elif nsym:
             # Introduce only normal state symmetry
             self.bath_params_SC="""
@@ -43,7 +43,7 @@ db5_1 =  -1*db3_1
 db6_1 =  -1*db4_1
 db7_1 =  0.0001
 db8_1 =  0.0001
-        """
+"""
         else:
             # Introduce no symmetry
             self.bath_params_SC="""
@@ -55,7 +55,7 @@ db5_1 =  0.0001
 db6_1 =  0.0001
 db7_1 =  0.0001
 db8_1 =  0.0001
-        """
+"""
 
     # function to create the cluster model
     def cluster_2x2(self, reps_str, suffix, ansym):
