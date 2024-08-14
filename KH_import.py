@@ -490,7 +490,8 @@ class SuperCluster_model:
                     if p.strip():
                         self.bath_params_SC += (p.strip().split('=')[0].replace("_1", "_"+str(iclus+1))
                                            +"=1*"
-                                           +p.strip().split('=')[0]
+                                           +p.strip().split('=')[0].replace("_1", 
+                                                                      "_"+str(last+1))
                                            +"\n")
                 for p in KH.parameter_string[iclus].split("\n"):
                     if p.strip():
