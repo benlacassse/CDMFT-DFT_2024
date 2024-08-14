@@ -506,6 +506,9 @@ class SuperCluster_model:
         self.model.set_parameters(os.linesep.join([TV_params,
                                                    self.bath_params_N,
                                                    self.bath_params_SC]))
+        print(os.linesep.join([TV_params,
+                                                   self.bath_params_N,
+                                                   self.bath_params_SC]))
 
 #
 ##########################################################################################

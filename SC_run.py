@@ -277,7 +277,10 @@ if __name__ == '__main__':
     maxiter = args.maxiter
     alpha = args.alpha
     conv  = args.conv
-    conv_test = args.conv_test
+    if args.conv_test == 'GS':
+        conv_test = 'GS energy'
+    else:
+        conv_test = args.conv_test
     # wseb = args.with_seb
     nsym = args.with_nsym
     ansym = args.with_ansym
