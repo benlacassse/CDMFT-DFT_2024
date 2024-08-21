@@ -66,9 +66,8 @@ if CCOC:
     if unified:
         print()
 
-plt.xlabel('%'+ ' Eff. Doping')
-plt.ylabel('$|m_{SC}|$')
-plt.legend
+
+
 plt.show()
 
 
