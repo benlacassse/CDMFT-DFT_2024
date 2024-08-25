@@ -463,7 +463,7 @@ class DMFTFileModifier:
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
-        print("Usage: python script_name.py <file_name> <layers> <nodes>")
+        print("Usage: indmfl_modify.py <file_name> <layers> <nodes>")
         sys.exit(1)
 
     file_name = sys.argv[1]

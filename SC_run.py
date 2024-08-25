@@ -193,8 +193,6 @@ if __name__ == '__main__':
                                         cdmft convergence (default: 32)
         --conv [conv]                  type of iteration method for the 
                                        cdmft convergence (default: 'fixed_point')
-        # --with-seb                     Flag to include the on-site anomalous
-        #                                bath terms usually called seb (default: False)
         --with-nsym                     Introduce the x/y normal symmetry in the 
                                         hopping matrix  
         --with-ansym                    Introduce the anormal anti-symmetry x2-y2 
@@ -252,10 +250,6 @@ if __name__ == '__main__':
                         help = ('type of parameter to observe to'
                                 + ' find convergence (default: self-energy)')
                         )
-    # parser.add_argument('--with-seb', action = 'store_true', default = False,
-    #                     help=('Flag to include the on-site anomalous'
-    #                           + ' bath terms usually called seb (default: False)')
-    #                     )
     parser.add_argument('--with-nsym', action = 'store_true', default = False,
                         help=('Flag to introduce x/y symmetry on the hopping'
                               + ' matrix in the normal state (default: False)')
@@ -281,7 +275,6 @@ if __name__ == '__main__':
         conv_test = 'GS energy'
     else:
         conv_test = args.conv_test
-    # wseb = args.with_seb
     nsym = args.with_nsym
     ansym = args.with_ansym
 
